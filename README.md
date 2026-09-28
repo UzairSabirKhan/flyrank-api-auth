@@ -11,7 +11,7 @@ A secure REST API handling user authentication (Sign Up, Log In, Log Out) and pr
 2. Populate `SUPABASE_URL` and `SUPABASE_KEY` with your project's anon key credentials from Supabase Dashboard.
 3. Install dependencies and start:
    ```bash
-   npm install && node server.js
+   pnpm add && node server.js
    ```
 
 ## Endpoint Reference
