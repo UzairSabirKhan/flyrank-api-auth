@@ -51,8 +51,8 @@ app.get('/public/info', (req, res) => {
   res.status(200).json({ message: "Welcome stranger! This info is public." });
 });
 
-// GET /protected/profile - Unverified check
-app.get('/protected/profile', (req, res) => {
+// Reusable Auth Guard Middleware
+async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -64,34 +64,41 @@ app.get('/protected/profile', (req, res) => {
     return res.status(401).json({ error: "Access token required" });
   }
 
-  res.status(200).json({ message: "Token detected, verification pending" });
-});
-
-app.get("/protected/profile", async (req, res) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Access token required" });
-  }
-
-  const token = authHeader.split(" ")[1];
-  if (!token) {
-    return res.status(401).json({ error: "Access token required" });
-  }
-
-  // Ask Supabase if the token is valid
   const { data, error } = await supabase.auth.getUser(token);
 
   if (error || !data.user) {
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 
-  // Return safe metadata
+  // Attach verified user and token to the request object
+  req.user = data.user;
+  req.token = token;
+  next();
+}
+
+// Protected routes using the middleware
+app.get('/protected/profile', requireAuth, (req, res) => {
   res.status(200).json({
-    id: data.user.id,
-    email: data.user.email,
-    created_at: data.user.created_at,
+    id: req.user.id,
+    email: req.user.email,
+    created_at: req.user.created_at
   });
+});
+
+app.get('/protected/dashboard', requireAuth, (req, res) => {
+  res.status(200).json({
+    message: `Welcome to your dashboard, ${req.user.email}!`,
+    stats: { uploads: 0, credits: 100 }
+  });
+});
+
+// POST /auth/logout - End session
+app.post('/auth/logout', requireAuth, async (req, res) => {
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+  res.status(204).send();
 });
 
 // Initialize Supabase Client
