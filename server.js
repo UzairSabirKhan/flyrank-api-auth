@@ -67,6 +67,33 @@ app.get('/protected/profile', (req, res) => {
   res.status(200).json({ message: "Token detected, verification pending" });
 });
 
+app.get("/protected/profile", async (req, res) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Access token required" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ error: "Access token required" });
+  }
+
+  // Ask Supabase if the token is valid
+  const { data, error } = await supabase.auth.getUser(token);
+
+  if (error || !data.user) {
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+
+  // Return safe metadata
+  res.status(200).json({
+    id: data.user.id,
+    email: data.user.email,
+    created_at: data.user.created_at,
+  });
+});
+
 // Initialize Supabase Client
 const supabase = createClient(
   process.env.SUPABASE_URL,
